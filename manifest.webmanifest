@@ -1,0 +1,15 @@
+{
+  "name": "ポータブルコーン貫入試験",
+  "short_name": "コーン試験",
+  "description": "現場でダイヤルゲージ読みを入力し、コーン貫入抵抗qcを自動計算・グラフ化するPWA",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0b5cab",
+  "lang": "ja",
+  "icons": [
+    {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

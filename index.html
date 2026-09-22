@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b5cab">
+  <meta name="description" content="ポータブルコーン貫入試験の現場入力・自動計算・グラフ・印刷用PWA">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>ポータブルコーン貫入試験</title>
+</head>
+<body>
+  <header class="app-header no-print">
+    <div>
+      <div class="eyebrow">森建設工業株式会社｜現場DX</div>
+      <h1>ポータブルコーン貫入試験</h1>
+      <div class="subline">JGS 1431 ベース・現行力計 K=4.4 N/目盛</div>
+    </div>
+    <div class="status-wrap">
+      <span id="onlineBadge" class="status-badge">接続確認中</span>
+      <span class="version">v1.0.2</span>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="panel no-print">
+      <div class="section-head">
+        <h2>試験情報</h2>
+        <button id="newBtn" class="btn btn-light" type="button">新規</button>
+      </div>
+      <div class="form-grid">
+        <label>調査件名<input id="projectName" type="text" autocomplete="off" placeholder="例：○○工事"></label>
+        <label>地点番号<input id="pointNo" type="text" autocomplete="off" placeholder="例：No.1"></label>
+        <label>地盤高<input id="groundLevel" type="text" autocomplete="off" placeholder="例：TP+12.35"></label>
+        <label>測定者<input id="operatorName" type="text" autocomplete="off" placeholder="氏名"></label>
+        <label>測定日<input id="testDate" type="date"></label>
+        <label>天候<input id="weather" type="text" autocomplete="off" placeholder="例：晴れ"></label>
+      </div>
+    </section>
+
+    <section class="layout-two">
+      <section class="panel measurement-panel">
+        <div class="section-head">
+          <div>
+            <h2>測定値入力</h2>
+            <p class="hint">深さ・ロッド本数を確認し、ダイヤルゲージ読み値だけ入力します。</p>
+          </div>
+          <div class="legend-chip">校正範囲 0〜232.1</div>
+        </div>
+        <div class="measure-header">
+          <span>深さ m</span><span>ロッド n</span><span>ダイヤル D</span><span>qc kN/m²</span>
+        </div>
+        <div id="measureRows" class="measure-rows"></div>
+        <div id="rangeWarning" class="warning hidden" role="alert"></div>
+      </section>
+
+      <section class="panel graph-panel">
+        <div class="section-head">
+          <div>
+            <h2>深さ - コーン貫入抵抗</h2>
+            <p class="hint">横軸：qc［kN/m²］／縦軸：深さ［m］（下ほど深い）</p>
+          </div>
+          <div id="latestQc" class="kpi">qc --</div>
+        </div>
+        <div class="chart-wrap">
+          <svg id="profileChart" viewBox="0 0 680 520" role="img" aria-label="深さとコーン貫入抵抗のグラフ"></svg>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel no-print">
+      <details>
+        <summary>試験機設定・校正情報</summary>
+        <div class="settings-actions">
+          <label class="toggle-line"><input id="unlockSettings" type="checkbox"> 設定値を変更する</label>
+          <button id="resetSettingsBtn" type="button" class="btn btn-light">標準値へ戻す</button>
+        </div>
+        <div class="form-grid settings-grid">
+          <label>平均係数 K［N/目盛］<input id="settingK" type="number" step="0.0001" value="4.4" readonly></label>
+          <label>ロッド質量 m₁［kg］<input id="settingM1" type="number" step="0.001" value="0.78" readonly></label>
+          <label>先端コーン質量 m₀［kg］<input id="settingM0" type="number" step="0.001" value="0.135" readonly></label>
+          <label>コーン底面積 A［m²］<input id="settingArea" type="number" step="0.000001" value="0.000645" readonly></label>
+        </div>
+        <div class="formula-box">
+          <div><b>貫入力：</b>Qrd = K × D</div>
+          <div><b>コーン貫入抵抗：</b>qc = { Qrd + (m₀ + n×m₁)×9.81 } ÷ (1000×A)</div>
+        </div>
+        <h3>力計対照表（現行校正）</h3>
+        <div class="calibration-grid">
+          <span>荷重 kN</span><span>ダイヤル読み</span>
+          <span>0.0</span><span>0.0</span>
+          <span>0.1</span><span>22.2</span>
+          <span>0.2</span><span>45.0</span>
+          <span>0.3</span><span>68.1</span>
+          <span>0.4</span><span>91.1</span>
+          <span>0.5</span><span>114.1</span>
+          <span>0.6</span><span>137.8</span>
+          <span>0.8</span><span>184.9</span>
+          <span>1.0</span><span>232.1</span>
+        </div>
+      </details>
+    </section>
+
+    <section class="action-bar no-print">
+      <button id="saveBtn" class="btn btn-primary" type="button">端末に保存</button>
+      <button id="historyBtn" class="btn" type="button">保存データ</button>
+      <button id="exportBtn" class="btn" type="button">PC用データ出力</button>
+      <label class="btn file-btn">データ読込<input id="importFile" type="file" accept="application/json,.json" hidden></label>
+      <button id="csvBtn" class="btn" type="button">CSV出力</button>
+      <button id="printBtn" class="btn btn-accent" type="button">PDF・印刷</button>
+    </section>
+
+    <section id="printSheet" class="print-sheet">
+      <div class="excel-title-row">
+        <div class="excel-jgs">JGS　1431</div>
+        <div class="excel-title">ポ ー タ ブ ル コ ー ン 貫 入 試 験</div>
+      </div>
+
+      <div class="excel-meta-line">
+        <div class="excel-meta-left"><span>調査件名</span><b data-print="projectName"></b></div>
+        <div class="excel-meta-right"><span>試　験　年　月　日</span><b data-print="testDateJP"></b></div>
+      </div>
+      <div class="excel-meta-line">
+        <div class="excel-meta-left point"><span>地点番号</span><b data-print="pointNo"></b><span class="ground-label">（地盤高）</span><b data-print="groundLevel"></b></div>
+        <div class="excel-meta-right"><span>試　　　験　　　者</span><b data-print="operatorName"></b></div>
+      </div>
+
+      <table class="excel-equipment">
+        <tbody>
+          <tr>
+            <th>試 験 機 の 種 類</th><td class="wide">単　管　式、二　重　管　式</td>
+            <th>荷 重 計 容 量</th><td class="unit">N</td><td class="value capacity">437.2</td>
+            <th>較　正　係　数</th><td class="unit">K N/目盛</td><td class="value" data-print="K"></td>
+          </tr>
+          <tr>
+            <th>ロ ッ ド 質 量</th><td class="unit">m1　kg</td><td class="value" data-print="m1"></td>
+            <th>先 端 コ ー ン 質 量</th><td class="unit">m0　kg</td><td class="value" data-print="m0"></td>
+            <th>コ ー ン 底 面 積</th><td class="unit">A　m²</td><td class="value" data-print="area"></td>
+          </tr>
+          <tr>
+            <th>貫　入　速　度</th><td class="unit">cm/s</td><td class="value">1</td>
+            <th>最 終 貫 入 深 さ</th><td class="unit">m</td><td class="value">1</td>
+            <th>天　　　候</th><td colspan="2" class="value" data-print="weather"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="excel-main">
+        <table id="printTable" class="excel-measure-table">
+          <thead>
+            <tr>
+              <th class="depth-h">測定深さ<br><small>m</small></th>
+              <th>ロッド<br><small>本数n</small></th>
+              <th>荷重計<br><small>読み値D</small></th>
+              <th>貫入力<br><small>Qrd=KD</small><br><small>N</small></th>
+              <th>コーン貫入抵抗<br><small>qc</small><br><small>kN/m²</small></th>
+              <th>記　　　事</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="excel-chart-wrap">
+          <svg id="printProfileChart" viewBox="0 0 560 930" role="img" aria-label="コーン貫入抵抗qcと深さのグラフ"></svg>
+        </div>
+      </div>
+
+      <div class="excel-special">特記事項</div>
+      <div class="excel-formulas">
+        <div>qc={Qrd+(m0+nm1)9.81}/1000/A</div>
+        <div>[1kN/m²≒0.0102kgf/cm²]</div>
+      </div>
+      <div class="excel-bottom-rule"></div>
+    </section>
+  </main>
+
+  <dialog id="historyDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="section-head"><h2>保存データ</h2><button class="btn btn-light" value="cancel">閉じる</button></div>
+      <div id="historyList" class="history-list"></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
