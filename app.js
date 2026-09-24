@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 const STORAGE_KEY = 'cone_pwa_draft_v1';
 const SAVED_KEY = 'cone_pwa_saved_v1';
 const MAX_DIAL = 232.1;
@@ -118,8 +118,40 @@ function syncPrintView(){
   drawPrintChart($('printProfileChart'),state.measurements);
 }
 
+function persistRecord(rec){
+  const saved=getSaved();
+  rec.id=rec.id||Date.now().toString();
+  rec.updatedAt=new Date().toISOString();
+  const i=saved.findIndex(x=>x.id===rec.id);
+  if(i>=0)saved[i]=rec; else saved.unshift(rec);
+  localStorage.setItem(SAVED_KEY,JSON.stringify(saved.slice(0,100)));
+  return rec;
+}
+
 function saveCurrent(){
-  updateAll(false); const saved=getSaved(); const rec=structuredCloneSafe(state); rec.id=rec.id||Date.now().toString(); rec.updatedAt=new Date().toISOString(); const i=saved.findIndex(x=>x.id===rec.id); if(i>=0)saved[i]=rec; else saved.unshift(rec); localStorage.setItem(SAVED_KEY,JSON.stringify(saved.slice(0,100))); localStorage.setItem(STORAGE_KEY,JSON.stringify(rec)); state=rec; showToast('端末に保存しました');
+  updateAll(false);
+  const rec=persistRecord(structuredCloneSafe(state));
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(rec));
+  state=rec;
+  showToast('端末に保存しました');
+}
+
+function saveAndNext(){
+  updateAll(false);
+  const rec=persistRecord(structuredCloneSafe(state));
+  const next=makeBlankState();
+  next.projectName=rec.projectName;
+  next.pointNo='';
+  next.groundLevel=rec.groundLevel;
+  next.operatorName=rec.operatorName;
+  next.testDate=rec.testDate;
+  next.weather=rec.weather;
+  next.settings={...rec.settings};
+  state=next;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+  applyState();
+  $('pointNo').focus();
+  showToast('保存しました。次の地点番号を入力してください');
 }
 function getSaved(){try{return JSON.parse(localStorage.getItem(SAVED_KEY)||'[]')}catch{return[]}}
 function showHistory(){const list=$('historyList');list.innerHTML='';const saved=getSaved(); if(!saved.length){list.innerHTML='<div class="hint">保存データはありません。</div>';} saved.forEach(rec=>{const el=document.createElement('div');el.className='history-item';const main=document.createElement('div');main.className='history-main';main.innerHTML=`<div class="history-title">${escapeHtml(rec.projectName||'名称未入力')} / ${escapeHtml(rec.pointNo||'地点未入力')}</div><div class="history-sub">${escapeHtml(rec.testDate||'')}　更新 ${new Date(rec.updatedAt).toLocaleString('ja-JP')}</div>`;const acts=document.createElement('div');acts.className='history-actions';const load=document.createElement('button');load.type='button';load.className='btn btn-light';load.textContent='開く';load.onclick=()=>{state=normalizeState(rec);applyState();$('historyDialog').close();showToast('読み込みました');};const del=document.createElement('button');del.type='button';del.className='btn btn-light';del.textContent='削除';del.onclick=()=>{if(confirm('この保存データを削除しますか？')){localStorage.setItem(SAVED_KEY,JSON.stringify(getSaved().filter(x=>x.id!==rec.id)));showHistory();}};acts.append(load,del);el.append(main,acts);list.appendChild(el);});$('historyDialog').showModal();}
@@ -141,7 +173,7 @@ function num(v,fallback){const n=Number(v);return Number.isFinite(n)?n:fallback}
 function bind(){
   fields.forEach(k=>$(k).addEventListener('input',updateAll));
   ['settingK','settingM1','settingM0','settingArea'].forEach(k=>$(k).addEventListener('input',updateAll));
-  $('unlockSettings').addEventListener('change',setSettingsLock);$('resetSettingsBtn').addEventListener('click',resetSettings);$('newBtn').addEventListener('click',startNew);$('saveBtn').addEventListener('click',saveCurrent);$('historyBtn').addEventListener('click',showHistory);$('exportBtn').addEventListener('click',exportJson);$('csvBtn').addEventListener('click',exportCsv);$('printBtn').addEventListener('click',()=>{updateAll(false);window.print();});$('importFile').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importJson(f);e.target.value='';});
+  $('unlockSettings').addEventListener('change',setSettingsLock);$('resetSettingsBtn').addEventListener('click',resetSettings);$('newBtn').addEventListener('click',startNew);$('saveBtn').addEventListener('click',saveCurrent);$('saveNextBtn').addEventListener('click',saveAndNext);$('historyBtn').addEventListener('click',showHistory);$('exportBtn').addEventListener('click',exportJson);$('csvBtn').addEventListener('click',exportCsv);$('printBtn').addEventListener('click',()=>{updateAll(false);window.print();});$('importFile').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importJson(f);e.target.value='';});
   addEventListener('online',updateOnline);addEventListener('offline',updateOnline);
 }
 
