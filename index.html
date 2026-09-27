@@ -20,9 +20,20 @@
     </div>
     <div class="status-wrap">
       <span id="onlineBadge" class="status-badge">接続確認中</span>
-      <span class="version">v1.0.3</span>
+      <span class="version">v1.0.4</span>
     </div>
   </header>
+
+  <div id="updateBanner" class="update-banner hidden no-print" role="status">
+    <div>
+      <b id="updateTitle">最新版があります</b>
+      <span id="updateText">保存データを残したまま更新できます。</span>
+    </div>
+    <div class="update-actions">
+      <button id="updateNowBtn" class="btn btn-primary" type="button">最新版へ更新</button>
+      <button id="updateLaterBtn" class="btn" type="button">あとで</button>
+    </div>
+  </div>
 
   <main class="app-shell">
     <section class="panel no-print">
@@ -45,7 +56,7 @@
         <div class="section-head">
           <div>
             <h2>測定値入力</h2>
-            <p class="hint">深さ・ロッド本数を確認し、ダイヤルゲージ読み値だけ入力します。</p>
+            <p class="hint">深さ・ロッド本数を確認し、ダイヤルゲージ読み値と必要に応じて記事を入力します。</p>
           </div>
           <div class="legend-chip">校正範囲 0〜232.1</div>
         </div>
@@ -109,7 +120,8 @@
       <button id="historyBtn" class="btn" type="button">保存データ</button>
       <button id="exportBtn" class="btn" type="button">PC用データ出力</button>
       <label class="btn file-btn">データ読込<input id="importFile" type="file" accept="application/json,.json" hidden></label>
-      <button id="csvBtn" class="btn" type="button">CSV出力</button>
+      <button id="excelBtn" class="btn" type="button">Excel帳票</button>
+      <button id="blankExcelBtn" class="btn" type="button">空白Excel様式</button>
       <button id="printBtn" class="btn btn-accent" type="button">PDF・印刷</button>
     </section>
 
@@ -184,6 +196,7 @@
   </dialog>
 
   <div id="toast" class="toast" aria-live="polite"></div>
+  <script src="excel-export.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>
