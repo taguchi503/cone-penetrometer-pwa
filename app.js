@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 const STORAGE_KEY = 'cone_pwa_draft_v1';
 const SAVED_KEY = 'cone_pwa_saved_v1';
 const UPDATE_BACKUP_KEY = 'cone_pwa_update_backup_v1';
@@ -178,6 +178,15 @@ function drawPrintChart(svg, measurements){
   svg.innerHTML=out;
 }
 
+function printNoteFontPt(note){
+  const text=String(note||'');
+  if(!text) return 6.2;
+  let units=0;
+  for(const ch of Array.from(text)) units += /[\x00-\xff]/.test(ch) ? 0.55 : 1;
+  // 記事欄の実効幅に合わせ、Excelの「縮小して全体を表示」と同じ考え方で1行に収める。
+  return Math.max(3.2, Math.min(6.2, 56/Math.max(1,units)));
+}
+
 function syncPrintView(){
   const values={
     projectName:state.projectName, pointNo:state.pointNo, groundLevel:state.groundLevel,
@@ -190,7 +199,9 @@ function syncPrintView(){
   state.measurements.forEach(m=>{
     const c=calcRow(m);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${m.depth.toFixed(1)}</td><td>${m.rods}</td><td>${m.dial===''?'':escapeHtml(m.dial)}</td><td>${c.qrd===null?'':c.qrd.toFixed(1)}</td><td>${c.qc===null?'':c.qc.toFixed(1)}</td><td>${escapeHtml(combinedNote(m,c))}</td>`;
+    const note=combinedNote(m,c);
+    const notePt=printNoteFontPt(note).toFixed(2);
+    tr.innerHTML=`<td>${m.depth.toFixed(1)}</td><td>${m.rods}</td><td>${m.dial===''?'':escapeHtml(m.dial)}</td><td>${c.qrd===null?'':c.qrd.toFixed(1)}</td><td>${c.qc===null?'':c.qc.toFixed(1)}</td><td class="note-cell" style="font-size:${notePt}pt">${escapeHtml(note)}</td>`;
     tbody.appendChild(tr);
   });
   for(let i=0;i<32;i++){

@@ -170,16 +170,35 @@
     return `<numCache><formatCode xml:space="preserve">${xmlEscape(formatCode)}</formatCode><ptCount val="${values.length}"/>${pts.join('')}</numCache>`;
   }
 
-  function replaceFirstSeriesCache(chartXml,qcValues,depthValues){
-    const serRe=/<ser>[\s\S]*?<\/ser>/;
-    const m=chartXml.match(serRe);
-    if(!m) return chartXml;
-    let ser=m[0];
-    ser=ser.replace(/(<xVal><numRef><f>[\s\S]*?<\/f>)<numCache>[\s\S]*?<\/numCache>(<\/numRef><\/xVal>)/,
-      `$1${numCache(qcValues,'0.00_ ')}$2`);
-    ser=ser.replace(/(<yVal><numRef><f>[\s\S]*?<\/f>)<numCache>[\s\S]*?<\/numCache>(<\/numRef><\/yVal>)/,
-      `$1${numCache(depthValues,'0.0_ ')}$2`);
-    return chartXml.replace(serRe,ser);
+  function chartNumRef(formula,values,formatCode){
+    return `<numRef><f>${xmlEscape(formula)}</f>${numCache(values,formatCode)}</numRef>`;
+  }
+
+  // Excelグラフは、非表示の補助列 S/T を介して qc × 深さ の1系列に固定する。
+  // 未測定行は補助列で #N/A とするため、Excel再計算後も0へ落ちる点を描画しない。
+  function normalizeChart(chartXml,qcValues,depthValues){
+    const sheet="'ポータブルコーン貫入試験データシート (記入用)'";
+    const scatterRe=/<scatterChart>[\s\S]*?<\/scatterChart>/;
+    const sm=chartXml.match(scatterRe);
+    if(!sm) return chartXml;
+    let scatter=sm[0];
+    const series=[...scatter.matchAll(/<ser>[\s\S]*?<\/ser>/g)].map(m=>m[0]);
+    if(!series.length) return chartXml;
+    let ser=series[0];
+    ser=ser.replace(/<idx[^>]*\/>/,'<idx val="0"/>').replace(/<order[^>]*\/>/,'<order val="0"/>');
+    const xBlock=`<xVal>${chartNumRef(`${sheet}!$S$10:$S$20`,qcValues,'0.0')}</xVal>`;
+    const yBlock=`<yVal>${chartNumRef(`${sheet}!$T$10:$T$20`,depthValues,'0.0')}</yVal>`;
+    ser=/<xVal>[\s\S]*?<\/xVal>/.test(ser)?ser.replace(/<xVal>[\s\S]*?<\/xVal>/,()=>xBlock):ser.replace(/<yVal>/,()=>xBlock+'<yVal>');
+    ser=/<yVal>[\s\S]*?<\/yVal>/.test(ser)?ser.replace(/<yVal>[\s\S]*?<\/yVal>/,()=>yBlock):ser.replace(/<\/ser>/,()=>yBlock+'</ser>');
+    ser=/<smooth[^>]*\/>/.test(ser)?ser.replace(/<smooth[^>]*\/>/,'<smooth val="0"/>'):ser.replace(/<\/ser>/,'<smooth val="0"/></ser>');
+    scatter=scatter.replace(/<ser>[\s\S]*?<\/ser>/g,'');
+    if(/<varyColors[^>]*\/>/.test(scatter)) scatter=scatter.replace(/(<varyColors[^>]*\/>)/,(m,g1)=>g1+ser);
+    else scatter=scatter.replace(/(<scatterStyle[^>]*\/>)/,(m,g1)=>g1+ser);
+    scatter=scatter.replace(/<scatterStyle[^>]*\/>/,'<scatterStyle val="lineMarker"/>');
+    let out=chartXml.replace(scatterRe,scatter);
+    if(/<dispBlanksAs[^>]*\/>/.test(out)) out=out.replace(/<dispBlanksAs[^>]*\/>/,'<dispBlanksAs val="gap"/>');
+    else out=out.replace('</chart>','<dispBlanksAs val="gap"/></chart>');
+    return out;
   }
 
   function combinedNote(m){
@@ -207,18 +226,25 @@
     const qcValues=[], depthValues=[];
     (payload.measurements||[]).slice(0,11).forEach((m,i)=>{
       const r=10+i;
-      depthValues.push(Number(m.depth));
       sheet=replaceCell(sheet,`B${r}`,'number',m.rods===''?0:m.rods);
       if(m.dial==='' || m.dial==null){
         sheet=replaceCell(sheet,`E${r}`,'blank','');
         sheet=replaceCell(sheet,`G${r}`,'formulaCache',null);
         sheet=replaceCell(sheet,`H${r}`,'formulaCache',null);
         qcValues.push(null);
+        depthValues.push(null);
+        sheet=replaceCell(sheet,`S${r}`,'formulaCache',null);
+        sheet=replaceCell(sheet,`T${r}`,'formulaCache',null);
       }else{
         sheet=replaceCell(sheet,`E${r}`,'number',m.dial);
         sheet=replaceCell(sheet,`G${r}`,'formulaCache',m.qrd);
         sheet=replaceCell(sheet,`H${r}`,'formulaCache',m.qc);
-        qcValues.push(Number.isFinite(Number(m.qc))?Number(m.qc):null);
+        const qcv=Number.isFinite(Number(m.qc))?Number(m.qc):null;
+        const dv=Number.isFinite(Number(m.depth))?Number(m.depth):null;
+        qcValues.push(qcv);
+        depthValues.push(dv);
+        sheet=replaceCell(sheet,`S${r}`,'formulaCache',qcv);
+        sheet=replaceCell(sheet,`T${r}`,'formulaCache',dv);
       }
       const note=combinedNote(m);
       sheet=replaceCell(sheet,`J${r}`,note?'string':'blank',note);
@@ -228,7 +254,7 @@
     const wbEntry=map.get('xl/workbook.xml');
     if(wbEntry) wbEntry.data=textEncoder.encode(replaceCalcSettings(textDecoder.decode(wbEntry.data)));
     const chartEntry=map.get('xl/charts/chart1.xml');
-    if(chartEntry) chartEntry.data=textEncoder.encode(replaceFirstSeriesCache(textDecoder.decode(chartEntry.data),qcValues,depthValues));
+    if(chartEntry) chartEntry.data=textEncoder.encode(normalizeChart(textDecoder.decode(chartEntry.data),qcValues,depthValues));
     return entries.map(e=>map.get(e.name)||e);
   }
 
