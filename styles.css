@@ -47,3 +47,5 @@
 @media print{
   .excel-measure-table td.note-cell{white-space:nowrap!important;overflow:hidden!important;text-overflow:clip!important;line-height:1!important;max-width:22mm!important;padding-left:.7mm!important;padding-right:.4mm!important}
 }
+
+.history-tools{display:flex;justify-content:flex-end;margin:0 0 10px}.history-tools .btn{font-size:12px}

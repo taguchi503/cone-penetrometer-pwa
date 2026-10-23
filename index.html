@@ -20,7 +20,7 @@
     </div>
     <div class="status-wrap">
       <span id="onlineBadge" class="status-badge">接続確認中</span>
-      <span class="version">v1.0.5</span>
+      <span class="version">v1.0.6</span>
     </div>
   </header>
 
@@ -118,8 +118,8 @@
       <button id="saveBtn" class="btn btn-primary" type="button">端末に保存</button>
       <button id="saveNextBtn" class="btn btn-next" type="button">保存して次の測定</button>
       <button id="historyBtn" class="btn" type="button">保存データ</button>
-      <button id="exportBtn" class="btn" type="button">PC用データ出力</button>
-      <label class="btn file-btn">データ読込<input id="importFile" type="file" accept="application/json,.json" hidden></label>
+      <button id="exportBtn" class="btn" type="button">バックアップ出力</button>
+      <label class="btn file-btn">バックアップ読込<input id="importFile" type="file" accept="application/json,.json" hidden></label>
       <button id="excelBtn" class="btn" type="button">Excel帳票</button>
       <button id="blankExcelBtn" class="btn" type="button">空白Excel様式</button>
       <button id="printBtn" class="btn btn-accent" type="button">PDF・印刷</button>
@@ -154,7 +154,7 @@
           </tr>
           <tr>
             <th>貫　入　速　度</th><td class="unit">cm/s</td><td class="value">1</td>
-            <th>最 終 貫 入 深 さ</th><td class="unit">m</td><td class="value">1</td>
+            <th>最 終 貫 入 深 さ</th><td class="unit">m</td><td class="value" data-print="finalDepth"></td>
             <th>天　　　候</th><td colspan="2" class="value" data-print="weather"></td>
           </tr>
         </tbody>
@@ -191,6 +191,7 @@
   <dialog id="historyDialog">
     <form method="dialog" class="dialog-card">
       <div class="section-head"><h2>保存データ</h2><button class="btn btn-light" value="cancel">閉じる</button></div>
+      <div class="history-tools"><button id="recoveryBtn" class="btn btn-light hidden" type="button">バックアップから復元</button></div>
       <div id="historyList" class="history-list"></div>
     </form>
   </dialog>

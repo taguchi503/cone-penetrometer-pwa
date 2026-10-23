@@ -1,11 +1,15 @@
 'use strict';
 
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 const STORAGE_KEY = 'cone_pwa_draft_v1';
 const SAVED_KEY = 'cone_pwa_saved_v1';
 const UPDATE_BACKUP_KEY = 'cone_pwa_update_backup_v1';
+const DEPTH2_BACKUP_KEY = 'cone_pwa_depth2_backup_v1';
+const PRE_RESTORE_BACKUP_KEY = 'cone_pwa_pre_restore_backup_v1';
+const RECOVERY_PROMPT_KEY = 'cone_pwa_recovery_prompt_v1';
+const DATA_VERSION = 2;
 const MAX_DIAL = 232.1;
-const DEPTHS = Array.from({length: 11}, (_, i) => +(i / 10).toFixed(1));
+const DEPTHS = Array.from({length: 21}, (_, i) => +(i / 10).toFixed(1));
 const DEFAULT_SETTINGS = { K: 4.4, m1: 0.78, m0: 0.135, area: 0.000645 };
 
 const $ = (id) => document.getElementById(id);
@@ -23,7 +27,7 @@ function makeBlankState(){
     testDate: new Date().toISOString().slice(0,10), weather:'',
     settings: {...DEFAULT_SETTINGS},
     measurements: DEPTHS.map(depth => ({depth, rods:1, dial:'', note:''})),
-    updatedAt: new Date().toISOString(), version: APP_VERSION
+    updatedAt: new Date().toISOString(), version: APP_VERSION, dataVersion: DATA_VERSION
   };
 }
 
@@ -133,7 +137,7 @@ function applyState(){
 }
 
 function drawChart(svg, measurements){
-  const W=680,H=520, L=78,R=24,T=48,B=52, plotW=W-L-R, plotH=H-T-B, xmax=2000,ymax=1.0;
+  const W=680,H=520, L=78,R=24,T=48,B=52, plotW=W-L-R, plotH=H-T-B, xmax=2000,ymax=2.0;
   const pts=[];
   measurements.forEach(m=>{const c=calcRow(m); if(c.qc!==null && Number.isFinite(c.qc)) pts.push({x:c.qc,y:Number(m.depth),invalid:c.invalid});});
   let out=`<rect x="0" y="0" width="${W}" height="${H}" fill="white"/>`;
@@ -142,7 +146,7 @@ function drawChart(svg, measurements){
     out+=`<line x1="${px}" y1="${T}" x2="${px}" y2="${T+plotH}" stroke="${major?'#9db2c5':'#e3ebf2'}" stroke-width="${major?1.2:.7}"/>`;
     if(major) out+=`<text x="${px}" y="${T-13}" text-anchor="middle" font-size="15" fill="#354b60">${x}</text>`;
   }
-  for(let y=0;y<=10;y++){
+  for(let y=0;y<=20;y++){
     const val=y/10, py=T+val/ymax*plotH;
     out+=`<line x1="${L}" y1="${py}" x2="${L+plotW}" y2="${py}" stroke="${y%5===0?'#9db2c5':'#e3ebf2'}" stroke-width="${y%5===0?1.2:.7}"/>`;
     out+=`<text x="${L-13}" y="${py+5}" text-anchor="end" font-size="14" fill="#354b60">${val.toFixed(1)}</text>`;
@@ -161,14 +165,14 @@ function drawChart(svg, measurements){
 }
 
 function drawPrintChart(svg, measurements){
-  const W=560,H=930,L=62,R=8,T=42,B=12, plotW=W-L-R, plotH=H-T-B, xmax=2000, ymax=1.0;
+  const W=560,H=930,L=62,R=8,T=42,B=12, plotW=W-L-R, plotH=H-T-B, xmax=2000, ymax=2.0;
   const pts=[];
   measurements.forEach(m=>{const c=calcRow(m); if(c.qc!==null && Number.isFinite(c.qc)) pts.push({x:c.qc,y:Number(m.depth),invalid:c.invalid});});
   let out=`<rect x="0" y="0" width="${W}" height="${H}" fill="white"/>`;
   out+=`<text x="18" y="18" text-anchor="middle" font-size="13" fill="#000">深　さ</text><text x="18" y="34" text-anchor="middle" font-size="11" fill="#000">m</text>`;
   out+=`<text x="${L+plotW/2}" y="18" text-anchor="middle" font-size="14" font-weight="700" fill="#000">qc　kN/m²</text>`;
   for(let x=0;x<=xmax;x+=100){const px=L+x/xmax*plotW; const major=x%500===0; out+=`<line x1="${px}" y1="${T}" x2="${px}" y2="${T+plotH}" stroke="#f4a900" stroke-width="${major?1.2:.75}"/>`; if(major) out+=`<text x="${px}" y="${T-8}" text-anchor="middle" font-size="10" fill="#000">${x.toFixed(2)}</text>`;}
-  for(let i=0;i<=20;i++){const y=i/20,py=T+y/ymax*plotH; const major=i%2===0; out+=`<line x1="${L}" y1="${py}" x2="${L+plotW}" y2="${py}" stroke="#f4a900" stroke-width="${major?1.2:.75}"/>`; if(major) out+=`<text x="${L-10}" y="${py+4}" text-anchor="end" font-size="11" fill="#000">${y.toFixed(1)}</text>`;}
+  for(let i=0;i<=40;i++){const y=i/20,py=T+y/ymax*plotH; const major=i%2===0; out+=`<line x1="${L}" y1="${py}" x2="${L+plotW}" y2="${py}" stroke="#f4a900" stroke-width="${major?1.2:.75}"/>`; if(major) out+=`<text x="${L-10}" y="${py+4}" text-anchor="end" font-size="11" fill="#000">${y.toFixed(1)}</text>`;}
   out+=`<line x1="${L}" y1="${T}" x2="${L}" y2="${T+plotH}" stroke="#000" stroke-width="2.2"/>`;
   if(pts.length){
     const path=pts.map((p,i)=>`${i?'L':'M'} ${L+Math.max(0,Math.min(p.x,xmax))/xmax*plotW} ${T+Math.max(0,Math.min(p.y,ymax))/ymax*plotH}`).join(' ');
@@ -191,7 +195,7 @@ function syncPrintView(){
   const values={
     projectName:state.projectName, pointNo:state.pointNo, groundLevel:state.groundLevel,
     operatorName:state.operatorName, testDate:state.testDate, testDateJP:formatDateJP(state.testDate),
-    weather:state.weather, K:state.settings.K, m1:state.settings.m1, m0:state.settings.m0, area:state.settings.area
+    weather:state.weather, finalDepth:getFinalDepth(state.measurements), K:state.settings.K, m1:state.settings.m1, m0:state.settings.m0, area:state.settings.area
   };
   document.querySelectorAll('[data-print]').forEach(el=>el.textContent=values[el.dataset.print]??'');
   const tbody=$('printTable').querySelector('tbody');
@@ -204,7 +208,7 @@ function syncPrintView(){
     tr.innerHTML=`<td>${m.depth.toFixed(1)}</td><td>${m.rods}</td><td>${m.dial===''?'':escapeHtml(m.dial)}</td><td>${c.qrd===null?'':c.qrd.toFixed(1)}</td><td>${c.qc===null?'':c.qc.toFixed(1)}</td><td class="note-cell" style="font-size:${notePt}pt">${escapeHtml(note)}</td>`;
     tbody.appendChild(tr);
   });
-  for(let i=0;i<32;i++){
+  for(let i=0;i<Math.max(0,43-state.measurements.length);i++){
     const tr=document.createElement('tr');
     tr.className='blank';
     tr.innerHTML='<td></td><td></td><td></td><td></td><td></td><td></td>';
@@ -218,6 +222,7 @@ function persistRecord(rec){
   rec.id=rec.id||Date.now().toString();
   rec.updatedAt=new Date().toISOString();
   rec.version=APP_VERSION;
+  rec.dataVersion=DATA_VERSION;
   const i=saved.findIndex(x=>x.id===rec.id);
   if(i>=0)saved[i]=rec; else saved.unshift(rec);
   localStorage.setItem(SAVED_KEY,JSON.stringify(saved.slice(0,100)));
@@ -253,17 +258,87 @@ function saveAndNext(){
 function getUpdateBackup(){
   try{return JSON.parse(localStorage.getItem(UPDATE_BACKUP_KEY)||'null');}catch{return null;}
 }
+function getDepth2Backup(){
+  try{return JSON.parse(localStorage.getItem(DEPTH2_BACKUP_KEY)||'null');}catch{return null;}
+}
+function parseSavedRaw(raw){
+  try{
+    const v=JSON.parse(raw||'[]');
+    return Array.isArray(v)?v:[];
+  }catch{return [];}
+}
+function getPrimarySaved(){
+  return parseSavedRaw(localStorage.getItem(SAVED_KEY)||'[]');
+}
 function getSaved(){
-  try{return JSON.parse(localStorage.getItem(SAVED_KEY)||'[]');}
-  catch{
+  try{
+    const v=JSON.parse(localStorage.getItem(SAVED_KEY)||'[]');
+    return Array.isArray(v)?v:[];
+  }catch{
     const backup=getUpdateBackup();
-    try{return backup?.saved?JSON.parse(backup.saved):[];}catch{return[];}
+    try{return backup?.saved?parseSavedRaw(backup.saved):[];}catch{return[];}
   }
+}
+function getRecoveryCandidate(){
+  if(getPrimarySaved().length) return null;
+  const candidates=[
+    {source:'更新前バックアップ',key:UPDATE_BACKUP_KEY,data:getUpdateBackup()},
+    {source:'深度2.0m移行前バックアップ',key:DEPTH2_BACKUP_KEY,data:getDepth2Backup()}
+  ].map(c=>{
+    const list=parseSavedRaw(c.data?.saved||'[]');
+    const createdAt=String(c.data?.createdAt||'');
+    return {...c,list,count:list.length,createdAt,signature:`${c.key}|${createdAt}|${list.length}`};
+  }).filter(c=>c.count>0);
+  if(!candidates.length) return null;
+  candidates.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+  return candidates[0];
+}
+function restoreSavedFromBackup(candidate){
+  if(!candidate?.count) return false;
+  try{
+    localStorage.setItem(PRE_RESTORE_BACKUP_KEY,JSON.stringify({
+      createdAt:new Date().toISOString(),
+      purpose:'バックアップ復元直前の原データ保全',
+      draft:localStorage.getItem(STORAGE_KEY)||'',
+      saved:localStorage.getItem(SAVED_KEY)||'[]'
+    }));
+    localStorage.setItem(SAVED_KEY,JSON.stringify(candidate.list));
+    localStorage.removeItem(RECOVERY_PROMPT_KEY);
+    return true;
+  }catch(e){
+    console.error('バックアップ復元に失敗',e);
+    return false;
+  }
+}
+function offerBackupRecovery(force=false){
+  const candidate=getRecoveryCandidate();
+  if(!candidate) return false;
+  const dismissed=localStorage.getItem(RECOVERY_PROMPT_KEY)||'';
+  if(!force && dismissed===candidate.signature) return false;
+  const ok=confirm(`端末の通常保存データは0件ですが、${candidate.source}に${candidate.count}件の保存データが残っています。\n\n保存データを復元しますか？\n※現在の入力途中データは変更しません。`);
+  if(ok){
+    if(restoreSavedFromBackup(candidate)){
+      showToast(`${candidate.count}件の保存データを復元しました`);
+      return true;
+    }
+    alert('バックアップの復元に失敗しました。現在のデータは変更していません。');
+    return false;
+  }
+  localStorage.setItem(RECOVERY_PROMPT_KEY,candidate.signature);
+  return false;
 }
 function showHistory(){
   const list=$('historyList'); list.innerHTML='';
   const saved=getSaved();
-  if(!saved.length) list.innerHTML='<div class="hint">保存データはありません。</div>';
+  const recovery=getRecoveryCandidate();
+  const recoveryBtn=$('recoveryBtn');
+  if(recoveryBtn){
+    recoveryBtn.classList.toggle('hidden',!recovery);
+    recoveryBtn.textContent=recovery?`バックアップから復元（${recovery.count}件）`:'バックアップから復元';
+  }
+  if(!saved.length) list.innerHTML=recovery
+    ?'<div class="hint">通常の保存データは0件です。バックアップから復元できます。</div>'
+    :'<div class="hint">保存データはありません。</div>';
   saved.forEach(rec=>{
     const el=document.createElement('div'); el.className='history-item';
     const main=document.createElement('div'); main.className='history-main';
@@ -275,36 +350,93 @@ function showHistory(){
     del.onclick=()=>{if(confirm('この保存データを削除しますか？')){localStorage.setItem(SAVED_KEY,JSON.stringify(getSaved().filter(x=>x.id!==rec.id)));showHistory();}};
     acts.append(load,del); el.append(main,acts); list.appendChild(el);
   });
-  $('historyDialog').showModal();
+  if(!$('historyDialog').open) $('historyDialog').showModal();
 }
 
-function exportJson(){
+function createFullBackupPayload(){
   updateAll(false);
-  download(`${safeName(state.projectName||'cone')}_${safeName(state.pointNo||'data')}.json`,JSON.stringify(state,null,2),'application/json');
+  const draft=normalizeState(structuredCloneSafe(state));
+  const saved=getPrimarySaved().map(rec=>normalizeState(rec));
+  return {
+    format:'cone-pwa-full-backup',
+    formatVersion:1,
+    appVersion:APP_VERSION,
+    dataVersion:DATA_VERSION,
+    exportedAt:new Date().toISOString(),
+    draft,
+    saved
+  };
+}
+function exportJson(){
+  const payload=createFullBackupPayload();
+  const date=new Date().toISOString().slice(0,10).replaceAll('-','');
+  download(`cone_pwa_backup_${date}_${payload.saved.length}件.json`,JSON.stringify(payload,null,2),'application/json');
+  showToast(`入力途中データ＋保存済み${payload.saved.length}件をバックアップしました`);
+}
+function importFullBackup(obj){
+  if(obj?.format!=='cone-pwa-full-backup' || !Array.isArray(obj?.saved)) return false;
+  const draft=normalizeState(obj.draft||makeBlankState());
+  const saved=obj.saved.map(rec=>normalizeState(rec));
+  const ok=confirm(`バックアップには保存済みデータが${saved.length}件含まれています。\n\n現在の入力途中データ・保存データを退避したうえで、このバックアップを復元しますか？`);
+  if(!ok) return true;
+  const previousDraft=localStorage.getItem(STORAGE_KEY)||'';
+  const previousSaved=localStorage.getItem(SAVED_KEY)||'[]';
+  try{
+    localStorage.setItem(PRE_RESTORE_BACKUP_KEY,JSON.stringify({
+      createdAt:new Date().toISOString(),
+      purpose:'全データバックアップ復元直前の原データ保全',
+      draft:previousDraft,
+      saved:previousSaved
+    }));
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(draft));
+    localStorage.setItem(SAVED_KEY,JSON.stringify(saved.slice(0,100)));
+    localStorage.removeItem(RECOVERY_PROMPT_KEY);
+    state=draft;
+    applyState();
+    showToast(`バックアップを復元しました（保存済み${Math.min(saved.length,100)}件）`);
+    return true;
+  }catch(e){
+    console.error('全データバックアップ復元に失敗',e);
+    try{
+      if(previousDraft) localStorage.setItem(STORAGE_KEY,previousDraft); else localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(SAVED_KEY,previousSaved);
+    }catch(rollbackError){console.error('復元失敗後のロールバックにも失敗',rollbackError);}
+    alert('バックアップの復元に失敗しました。復元前データを保持しています。');
+    return true;
+  }
 }
 function importJson(file){
   const reader=new FileReader();
   reader.onload=()=>{
     try{
       const obj=JSON.parse(reader.result);
+      if(importFullBackup(obj)) return;
+      // v1.0.5以前の「1測点JSON」も引き続き読み込み可能
+      if(!Array.isArray(obj?.measurements)) throw new Error('unsupported backup format');
       state=normalizeState(obj);
       applyState();
       localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
-      showToast('データを読み込みました');
+      showToast('旧形式の1測点バックアップを入力途中データとして読み込みました');
     }catch(e){
-      alert('読み込みに失敗しました。PWAから出力したJSONファイルを選んでください。');
+      alert('読み込みに失敗しました。このアプリの「バックアップ出力」で保存したJSONファイルを選んでください。');
     }
   };
   reader.readAsText(file);
 }
 function normalizeState(obj){
   const base=makeBlankState();
+  const source=Array.isArray(obj?.measurements)?obj.measurements:[];
   return {
     ...base,
-    ...obj,
-    settings:{...DEFAULT_SETTINGS,...(obj.settings||{})},
-    measurements:DEPTHS.map((d,i)=>({...base.measurements[i],...(obj.measurements?.[i]||{}),depth:d,note:obj.measurements?.[i]?.note||''})),
-    version:APP_VERSION
+    ...(obj||{}),
+    settings:{...DEFAULT_SETTINGS,...(obj?.settings||{})},
+    measurements:DEPTHS.map((d,i)=>{
+      const byDepth=source.find(m=>Number(m?.depth)===d);
+      const src=byDepth||source[i]||{};
+      return {...base.measurements[i],...src,depth:d,note:src.note||''};
+    }),
+    version:APP_VERSION,
+    dataVersion:DATA_VERSION
   };
 }
 
@@ -317,6 +449,7 @@ function buildExcelPayload(){
     operatorName:state.operatorName,
     testDateJP:formatDateJP(state.testDate),
     weather:state.weather,
+    finalDepth:getFinalDepth(state.measurements),
     settings:{...state.settings},
     measurements:state.measurements.map(m=>{
       const c=calcRow(m);
@@ -376,6 +509,13 @@ function download(name,text,type){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+function getFinalDepth(measurements=state.measurements){
+  let last=null;
+  for(const m of measurements||[]){
+    if(m && m.dial!=='' && m.dial!=null && Number.isFinite(Number(m.depth))) last=Number(m.depth);
+  }
+  return last;
+}
 function formatDateJP(v){
   if(!v)return '';
   const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -403,6 +543,7 @@ function saveUpdateBackup(){
     localStorage.setItem(UPDATE_BACKUP_KEY,JSON.stringify({
       createdAt:new Date().toISOString(),
       fromVersion:APP_VERSION,
+      dataVersion:DATA_VERSION,
       draft:localStorage.getItem(STORAGE_KEY)||'',
       saved:localStorage.getItem(SAVED_KEY)||'[]'
     }));
@@ -474,6 +615,13 @@ function bind(){
   $('saveBtn').addEventListener('click',saveCurrent);
   $('saveNextBtn').addEventListener('click',saveAndNext);
   $('historyBtn').addEventListener('click',showHistory);
+  $('recoveryBtn').addEventListener('click',()=>{
+    const restored=offerBackupRecovery(true);
+    if(restored){
+      if($('historyDialog').open) $('historyDialog').close();
+      showHistory();
+    }
+  });
   $('exportBtn').addEventListener('click',exportJson);
   $('excelBtn').addEventListener('click',exportExcel);
   $('blankExcelBtn').addEventListener('click',exportBlankExcel);
@@ -483,6 +631,26 @@ function bind(){
   $('updateLaterBtn').addEventListener('click',hideUpdateBanner);
   addEventListener('online',()=>{updateOnline();checkForUpdate();});
   addEventListener('offline',updateOnline);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){updateOnline();checkForUpdate();}});
+  setInterval(()=>{if(navigator.onLine)checkForUpdate();},60*60*1000);
+}
+
+function backupLegacyDepthData(){
+  try{
+    if(localStorage.getItem(DEPTH2_BACKUP_KEY)) return;
+    const draftRaw=localStorage.getItem(STORAGE_KEY)||'';
+    const savedRaw=localStorage.getItem(SAVED_KEY)||'[]';
+    if(!draftRaw && savedRaw==='[]') return;
+    let fromVersion='';
+    try{fromVersion=String(JSON.parse(draftRaw||'{}').version||'');}catch{}
+    localStorage.setItem(DEPTH2_BACKUP_KEY,JSON.stringify({
+      createdAt:new Date().toISOString(),
+      purpose:'v1.0.6 深度2.0m対応前の原データ保全',
+      fromVersion,
+      draft:draftRaw,
+      saved:savedRaw
+    }));
+  }catch(e){console.warn('深度2.0m移行前バックアップに失敗',e);}
 }
 
 function loadInitialState(){
@@ -499,8 +667,10 @@ function loadInitialState(){
 
 async function init(){
   bind(); updateOnline(); setSettingsLock();
+  backupLegacyDepthData();
   state=loadInitialState();
   applyState();
+  offerBackupRecovery(false);
   await registerCurrentServiceWorker();
   checkForUpdate();
 }

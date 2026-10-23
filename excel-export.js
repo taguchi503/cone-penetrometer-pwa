@@ -186,8 +186,8 @@
     if(!series.length) return chartXml;
     let ser=series[0];
     ser=ser.replace(/<idx[^>]*\/>/,'<idx val="0"/>').replace(/<order[^>]*\/>/,'<order val="0"/>');
-    const xBlock=`<xVal>${chartNumRef(`${sheet}!$S$10:$S$20`,qcValues,'0.0')}</xVal>`;
-    const yBlock=`<yVal>${chartNumRef(`${sheet}!$T$10:$T$20`,depthValues,'0.0')}</yVal>`;
+    const xBlock=`<xVal>${chartNumRef(`${sheet}!$S$10:$S$30`,qcValues,'0.0')}</xVal>`;
+    const yBlock=`<yVal>${chartNumRef(`${sheet}!$T$10:$T$30`,depthValues,'0.0')}</yVal>`;
     ser=/<xVal>[\s\S]*?<\/xVal>/.test(ser)?ser.replace(/<xVal>[\s\S]*?<\/xVal>/,()=>xBlock):ser.replace(/<yVal>/,()=>xBlock+'<yVal>');
     ser=/<yVal>[\s\S]*?<\/yVal>/.test(ser)?ser.replace(/<yVal>[\s\S]*?<\/yVal>/,()=>yBlock):ser.replace(/<\/ser>/,()=>yBlock+'</ser>');
     ser=/<smooth[^>]*\/>/.test(ser)?ser.replace(/<smooth[^>]*\/>/,'<smooth val="0"/>'):ser.replace(/<\/ser>/,'<smooth val="0"/></ser>');
@@ -223,8 +223,9 @@
     sheet=replaceCell(sheet,'F5','number',s.m1??0.78);
     sheet=replaceCell(sheet,'L5','number',s.m0??0.135);
     sheet=replaceCell(sheet,'R5','number',s.area??0.000645);
+    sheet=replaceCell(sheet,'L6','formulaCache',payload.finalDepth);
     const qcValues=[], depthValues=[];
-    (payload.measurements||[]).slice(0,11).forEach((m,i)=>{
+    (payload.measurements||[]).slice(0,21).forEach((m,i)=>{
       const r=10+i;
       sheet=replaceCell(sheet,`B${r}`,'number',m.rods===''?0:m.rods);
       if(m.dial==='' || m.dial==null){
