@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE = 'cone-pwa-v1.0.6';
+const CACHE = 'cone-pwa-v1.0.7';
 const ASSETS = [
   './',
   './index.html',

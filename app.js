@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 const STORAGE_KEY = 'cone_pwa_draft_v1';
 const SAVED_KEY = 'cone_pwa_saved_v1';
 const UPDATE_BACKUP_KEY = 'cone_pwa_update_backup_v1';
@@ -19,6 +19,7 @@ let toastTimer;
 let swRegistration = null;
 let updateInProgress = false;
 let remoteVersion = null;
+const batchSelection = new Set();
 
 function makeBlankState(){
   return {
@@ -82,12 +83,13 @@ function renderRows(){
   updateAll(false);
 }
 
-function calcRow(m){
+function calcRowWithSettings(m, settings=state.settings){
   const dial = Number(m.dial);
   const rods = Number(m.rods);
   if (m.dial === '' || !Number.isFinite(dial) || !Number.isFinite(rods)) return {qrd:null,qc:null,invalid:false};
-  return {qrd:qrdN(dial,state.settings), qc:qcValue(dial,rods,state.settings), invalid:dial<0 || dial>MAX_DIAL};
+  return {qrd:qrdN(dial,settings), qc:qcValue(dial,rods,settings), invalid:dial<0 || dial>MAX_DIAL};
 }
+function calcRow(m){ return calcRowWithSettings(m,state.settings); }
 
 function combinedNote(m,c=calcRow(m)){
   const parts=[];
@@ -164,10 +166,10 @@ function drawChart(svg, measurements){
   svg.innerHTML=out;
 }
 
-function drawPrintChart(svg, measurements){
+function drawPrintChart(svg, measurements, settings=state.settings){
   const W=560,H=930,L=62,R=8,T=42,B=12, plotW=W-L-R, plotH=H-T-B, xmax=2000, ymax=2.0;
   const pts=[];
-  measurements.forEach(m=>{const c=calcRow(m); if(c.qc!==null && Number.isFinite(c.qc)) pts.push({x:c.qc,y:Number(m.depth),invalid:c.invalid});});
+  measurements.forEach(m=>{const c=calcRowWithSettings(m,settings); if(c.qc!==null && Number.isFinite(c.qc)) pts.push({x:c.qc,y:Number(m.depth),invalid:c.invalid});});
   let out=`<rect x="0" y="0" width="${W}" height="${H}" fill="white"/>`;
   out+=`<text x="18" y="18" text-anchor="middle" font-size="13" fill="#000">深　さ</text><text x="18" y="34" text-anchor="middle" font-size="11" fill="#000">m</text>`;
   out+=`<text x="${L+plotW/2}" y="18" text-anchor="middle" font-size="14" font-weight="700" fill="#000">qc　kN/m²</text>`;
@@ -191,30 +193,75 @@ function printNoteFontPt(note){
   return Math.max(3.2, Math.min(6.2, 56/Math.max(1,units)));
 }
 
-function syncPrintView(){
+function populatePrintSheet(sheet, record){
+  const rec=normalizeState(record||state);
   const values={
-    projectName:state.projectName, pointNo:state.pointNo, groundLevel:state.groundLevel,
-    operatorName:state.operatorName, testDate:state.testDate, testDateJP:formatDateJP(state.testDate),
-    weather:state.weather, finalDepth:getFinalDepth(state.measurements), K:state.settings.K, m1:state.settings.m1, m0:state.settings.m0, area:state.settings.area
+    projectName:rec.projectName, pointNo:rec.pointNo, groundLevel:rec.groundLevel,
+    operatorName:rec.operatorName, testDate:rec.testDate, testDateJP:formatDateJP(rec.testDate),
+    weather:rec.weather, finalDepth:getFinalDepth(rec.measurements), K:rec.settings.K, m1:rec.settings.m1, m0:rec.settings.m0, area:rec.settings.area
   };
-  document.querySelectorAll('[data-print]').forEach(el=>el.textContent=values[el.dataset.print]??'');
-  const tbody=$('printTable').querySelector('tbody');
+  sheet.querySelectorAll('[data-print]').forEach(el=>el.textContent=values[el.dataset.print]??'');
+  const tbody=sheet.querySelector('.excel-measure-table tbody');
   tbody.innerHTML='';
-  state.measurements.forEach(m=>{
-    const c=calcRow(m);
+  rec.measurements.forEach(m=>{
+    const c=calcRowWithSettings(m,rec.settings);
     const tr=document.createElement('tr');
     const note=combinedNote(m,c);
     const notePt=printNoteFontPt(note).toFixed(2);
     tr.innerHTML=`<td>${m.depth.toFixed(1)}</td><td>${m.rods}</td><td>${m.dial===''?'':escapeHtml(m.dial)}</td><td>${c.qrd===null?'':c.qrd.toFixed(1)}</td><td>${c.qc===null?'':c.qc.toFixed(1)}</td><td class="note-cell" style="font-size:${notePt}pt">${escapeHtml(note)}</td>`;
     tbody.appendChild(tr);
   });
-  for(let i=0;i<Math.max(0,43-state.measurements.length);i++){
+  for(let i=0;i<Math.max(0,43-rec.measurements.length);i++){
     const tr=document.createElement('tr');
     tr.className='blank';
     tr.innerHTML='<td></td><td></td><td></td><td></td><td></td><td></td>';
     tbody.appendChild(tr);
   }
-  drawPrintChart($('printProfileChart'),state.measurements);
+  drawPrintChart(sheet.querySelector('.excel-chart-wrap svg'),rec.measurements,rec.settings);
+}
+
+function syncPrintView(){ populatePrintSheet($('printSheet'),state); }
+
+function updateBatchSelectionUI(){
+  const savedIds=new Set(getSaved().map(x=>String(x.id)));
+  [...batchSelection].forEach(id=>{if(!savedIds.has(String(id)))batchSelection.delete(String(id));});
+  const count=batchSelection.size;
+  const countEl=$('batchSelectionCount');
+  const btn=$('batchPrintBtn');
+  if(countEl) countEl.textContent=`${count}件選択`;
+  if(btn){btn.disabled=count===0;btn.textContent=count?`選択${count}件を一括PDF`:'選択データを一括PDF';}
+}
+
+function buildBatchPrintPages(records){
+  const root=$('batchPrintRoot');
+  root.innerHTML='';
+  const template=$('printSheet');
+  records.forEach(rec=>{
+    const page=template.cloneNode(true);
+    page.removeAttribute('id');
+    page.classList.add('batch-print-page');
+    page.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+    populatePrintSheet(page,rec);
+    root.appendChild(page);
+  });
+  root.setAttribute('aria-hidden','false');
+}
+
+function clearBatchPrintPages(){
+  document.body.classList.remove('batch-printing');
+  const root=$('batchPrintRoot');
+  if(root){root.innerHTML='';root.setAttribute('aria-hidden','true');}
+}
+
+function printSelectedSaved(){
+  const selected=getSaved().filter(rec=>batchSelection.has(String(rec.id)));
+  if(!selected.length){alert('一括PDFにする保存データを選択してください。');return;}
+  buildBatchPrintPages(selected);
+  document.body.classList.add('batch-printing');
+  if($('historyDialog').open) $('historyDialog').close();
+  const cleanup=()=>{clearBatchPrintPages();removeEventListener('afterprint',cleanup);};
+  addEventListener('afterprint',cleanup,{once:true});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>window.print()));
 }
 
 function persistRecord(rec){
@@ -330,6 +377,8 @@ function offerBackupRecovery(force=false){
 function showHistory(){
   const list=$('historyList'); list.innerHTML='';
   const saved=getSaved();
+  const savedIds=new Set(saved.map(x=>String(x.id)));
+  [...batchSelection].forEach(id=>{if(!savedIds.has(String(id)))batchSelection.delete(String(id));});
   const recovery=getRecoveryCandidate();
   const recoveryBtn=$('recoveryBtn');
   if(recoveryBtn){
@@ -340,16 +389,23 @@ function showHistory(){
     ?'<div class="hint">通常の保存データは0件です。バックアップから復元できます。</div>'
     :'<div class="hint">保存データはありません。</div>';
   saved.forEach(rec=>{
+    const id=String(rec.id);
     const el=document.createElement('div'); el.className='history-item';
+    if(batchSelection.has(id)) el.classList.add('selected');
+    const checkWrap=document.createElement('label'); checkWrap.className='history-check';
+    const check=document.createElement('input'); check.type='checkbox'; check.checked=batchSelection.has(id); check.setAttribute('aria-label',`${rec.projectName||'名称未入力'} ${rec.pointNo||'地点未入力'}を一括PDF対象に選択`);
+    check.onchange=()=>{if(check.checked) batchSelection.add(id); else batchSelection.delete(id);el.classList.toggle('selected',check.checked);updateBatchSelectionUI();};
+    checkWrap.appendChild(check);
     const main=document.createElement('div'); main.className='history-main';
     main.innerHTML=`<div class="history-title">${escapeHtml(rec.projectName||'名称未入力')} / ${escapeHtml(rec.pointNo||'地点未入力')}</div><div class="history-sub">${escapeHtml(rec.testDate||'')}　更新 ${new Date(rec.updatedAt).toLocaleString('ja-JP')}</div>`;
     const acts=document.createElement('div'); acts.className='history-actions';
     const load=document.createElement('button'); load.type='button'; load.className='btn btn-light'; load.textContent='開く';
     load.onclick=()=>{state=normalizeState(rec);applyState();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));$('historyDialog').close();showToast('読み込みました');};
     const del=document.createElement('button'); del.type='button'; del.className='btn btn-light'; del.textContent='削除';
-    del.onclick=()=>{if(confirm('この保存データを削除しますか？')){localStorage.setItem(SAVED_KEY,JSON.stringify(getSaved().filter(x=>x.id!==rec.id)));showHistory();}};
-    acts.append(load,del); el.append(main,acts); list.appendChild(el);
+    del.onclick=()=>{if(confirm('この保存データを削除しますか？')){batchSelection.delete(id);localStorage.setItem(SAVED_KEY,JSON.stringify(getSaved().filter(x=>String(x.id)!==id)));showHistory();}};
+    acts.append(load,del); el.append(checkWrap,main,acts); list.appendChild(el);
   });
+  updateBatchSelectionUI();
   if(!$('historyDialog').open) $('historyDialog').showModal();
 }
 
@@ -615,6 +671,9 @@ function bind(){
   $('saveBtn').addEventListener('click',saveCurrent);
   $('saveNextBtn').addEventListener('click',saveAndNext);
   $('historyBtn').addEventListener('click',showHistory);
+  $('selectAllHistoryBtn').addEventListener('click',()=>{getSaved().forEach(rec=>batchSelection.add(String(rec.id)));showHistory();});
+  $('clearHistorySelectionBtn').addEventListener('click',()=>{batchSelection.clear();showHistory();});
+  $('batchPrintBtn').addEventListener('click',printSelectedSaved);
   $('recoveryBtn').addEventListener('click',()=>{
     const restored=offerBackupRecovery(true);
     if(restored){

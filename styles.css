@@ -9,6 +9,11 @@
   .no-print,.app-header,.layout-two,.panel,.action-bar,dialog,.toast{display:none!important}
   .app-shell{max-width:none!important;padding:0!important;margin:0!important}
   .print-sheet{display:block!important;width:194mm;margin:0 auto;font-family:"Yu Gothic","Meiryo",sans-serif;color:#000;font-size:7pt;line-height:1.1}
+  body.batch-printing #printSheet{display:none!important}
+  body.batch-printing #batchPrintRoot{display:block!important}
+  body.batch-printing #batchPrintRoot .print-sheet{display:block!important}
+  body.batch-printing #batchPrintRoot .batch-print-page{break-after:page;page-break-after:always}
+  body.batch-printing #batchPrintRoot .batch-print-page:last-child{break-after:auto;page-break-after:auto}
   .excel-title-row{height:10mm;display:grid;grid-template-columns:38mm 1fr;border-top:1.2pt solid #000;border-bottom:1.2pt solid #000;margin-bottom:2.5mm}
   .excel-jgs,.excel-title{display:flex;align-items:center;justify-content:center;font-weight:700}
   .excel-jgs{font-size:11pt;border-right:1pt solid #000}.excel-title{font-size:11.5pt;letter-spacing:.12em}
@@ -48,4 +53,17 @@
   .excel-measure-table td.note-cell{white-space:nowrap!important;overflow:hidden!important;text-overflow:clip!important;line-height:1!important;max-width:22mm!important;padding-left:.7mm!important;padding-right:.4mm!important}
 }
 
-.history-tools{display:flex;justify-content:flex-end;margin:0 0 10px}.history-tools .btn{font-size:12px}
+.history-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}.history-tools-left,.history-tools-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.history-tools .btn{font-size:12px}.history-check{display:flex;align-items:center;justify-content:center;flex:0 0 auto}.history-check input{width:20px;height:20px;cursor:pointer}.history-item.selected{border-color:var(--teal);background:#f0fbfb}.batch-count{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}.batch-print-root{display:none}
+
+
+/* version history */
+.release-history-panel summary{font-weight:800;cursor:pointer}
+.release-history{display:grid;gap:10px;margin-top:14px}
+.release-entry{border-left:3px solid #c8d5e2;background:#fafcfe;border-radius:0 10px 10px 0;padding:10px 12px}
+.release-entry.current{border-left-color:var(--teal);background:#f0fbfb}
+.release-head{display:flex;align-items:baseline;gap:10px;margin-bottom:5px}
+.release-head b{font-size:14px;color:var(--text)}
+.release-head span{font-size:11px;color:var(--muted)}
+.release-entry ul{margin:0;padding-left:20px;color:#40566a;font-size:12px;line-height:1.65}
+.release-entry li+li{margin-top:2px}
+@media(max-width:480px){.release-entry{padding:9px 10px}.release-entry ul{font-size:11.5px;padding-left:18px}}

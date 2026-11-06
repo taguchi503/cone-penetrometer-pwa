@@ -20,7 +20,7 @@
     </div>
     <div class="status-wrap">
       <span id="onlineBadge" class="status-badge">接続確認中</span>
-      <span class="version">v1.0.6</span>
+      <span class="version">v1.0.7</span>
     </div>
   </header>
 
@@ -114,6 +114,81 @@
       </details>
     </section>
 
+
+    <section class="panel no-print release-history-panel">
+      <details>
+        <summary>変更履歴（v1.0.0 ～ v1.0.7）</summary>
+        <div class="release-history">
+          <div class="release-entry current">
+            <div class="release-head"><b>v1.0.7</b><span>2026/11/06</span></div>
+            <ul>
+              <li>保存データの複数選択・一括PDF／印刷を追加（1試験＝1ページ）</li>
+              <li>保存データ一覧に「全選択」「選択解除」を追加</li>
+              <li>帳票の荷重計容量表示を現行校正表上限 1.0 kN＝1000 N に修正</li>
+              <li>アプリ内に更新履歴表示を追加</li>
+            </ul>
+          </div>
+          <div class="release-entry">
+            <div class="release-head"><b>v1.0.6</b><span>2026/10/23</span></div>
+            <ul>
+              <li>測定深度を0.0～2.0m（0.1mピッチ・21点）へ拡張</li>
+              <li>画面・グラフ・PDF・Excel帳票を2.0m対応</li>
+              <li>最終貫入深さの自動表示を追加</li>
+              <li>旧1.0mデータを保持したまま2.0m形式へ補完</li>
+              <li>更新前・深度移行前・復元前のバックアップ／復元を強化</li>
+              <li>バックグラウンド復帰時・オンライン中1時間ごとの更新確認を追加</li>
+              <li>2026/11/05：ポータル更新検知用 app-info.json を追加（本体バージョンはv1.0.6のまま）</li>
+            </ul>
+          </div>
+          <div class="release-entry">
+            <div class="release-head"><b>v1.0.5</b><span>2026/10/05</span></div>
+            <ul>
+              <li>Excel帳票グラフをqc×深さの1系列に固定</li>
+              <li>未測定行がqc=0としてグラフ表示される問題を修正</li>
+              <li>Excelでダイヤル値を修正した場合の再計算・グラフ連動を改善</li>
+              <li>記事欄のはみ出し対策、A4縦1ページなど帳票レイアウトを調整</li>
+            </ul>
+          </div>
+          <div class="release-entry">
+            <div class="release-head"><b>v1.0.4</b><span>2026/09/25</span></div>
+            <ul>
+              <li>各測定深さに記事欄を追加し、保存・JSON・PDF・Excelへ反映</li>
+              <li>Excel帳票出力・空白Excel様式を追加</li>
+              <li>CSV出力を画面から廃止</li>
+              <li>version.jsonによる最新版確認・更新案内を追加</li>
+              <li>更新前に入力途中データ・保存データをバックアップする処理を追加</li>
+            </ul>
+          </div>
+          <div class="release-entry">
+            <div class="release-head"><b>v1.0.3</b><span>2026/09/24</span></div>
+            <ul>
+              <li>「保存して次の測定」を追加</li>
+              <li>保存後に新しい測定IDへ切替え、工事情報等を引き継いで連続測定できるよう改善</li>
+            </ul>
+          </div>
+          <div class="release-entry">
+            <div class="release-head"><b>v1.0.2</b><span>2026/09/22</span></div>
+            <ul>
+              <li>PDF・印刷帳票の黄色セル表示を解除し、帳票配色を調整</li>
+            </ul>
+          </div>
+          <div class="release-entry">
+            <div class="release-head"><b>v1.0.1</b><span>2026/09/22</span></div>
+            <ul>
+              <li>PDF・紙印刷帳票を、大元Excel様式に合わせたJGS 1431系のA4縦帳票へ変更</li>
+            </ul>
+          </div>
+          <div class="release-entry">
+            <div class="release-head"><b>v1.0.0</b><span>2026/09/22</span></div>
+            <ul>
+              <li>初版PWA</li>
+              <li>深さ・ロッド本数・ダイヤル読み入力、Qrd／qc自動計算、深さ－qcグラフを実装</li>
+              <li>端末内保存・保存履歴、JSON出力／読込、CSV出力、PDF・紙印刷、オフライン対応を実装</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+    </section>
     <section class="action-bar no-print">
       <button id="saveBtn" class="btn btn-primary" type="button">端末に保存</button>
       <button id="saveNextBtn" class="btn btn-next" type="button">保存して次の測定</button>
@@ -144,7 +219,7 @@
         <tbody>
           <tr>
             <th>試 験 機 の 種 類</th><td class="wide">単　管　式、二　重　管　式</td>
-            <th>荷 重 計 容 量</th><td class="unit">N</td><td class="value capacity">437.2</td>
+            <th>荷 重 計 容 量</th><td class="unit">N</td><td class="value capacity">1000</td>
             <th>較　正　係　数</th><td class="unit">K N/目盛</td><td class="value" data-print="K"></td>
           </tr>
           <tr>
@@ -186,12 +261,23 @@
       </div>
       <div class="excel-bottom-rule"></div>
     </section>
+    <div id="batchPrintRoot" class="batch-print-root" aria-hidden="true"></div>
   </main>
 
   <dialog id="historyDialog">
     <form method="dialog" class="dialog-card">
       <div class="section-head"><h2>保存データ</h2><button class="btn btn-light" value="cancel">閉じる</button></div>
-      <div class="history-tools"><button id="recoveryBtn" class="btn btn-light hidden" type="button">バックアップから復元</button></div>
+      <div class="history-tools">
+        <div class="history-tools-left">
+          <button id="selectAllHistoryBtn" class="btn btn-light" type="button">全選択</button>
+          <button id="clearHistorySelectionBtn" class="btn btn-light" type="button">選択解除</button>
+          <span id="batchSelectionCount" class="batch-count">0件選択</span>
+        </div>
+        <div class="history-tools-right">
+          <button id="batchPrintBtn" class="btn btn-accent" type="button" disabled>選択データを一括PDF</button>
+          <button id="recoveryBtn" class="btn btn-light hidden" type="button">バックアップから復元</button>
+        </div>
+      </div>
       <div id="historyList" class="history-list"></div>
     </form>
   </dialog>
